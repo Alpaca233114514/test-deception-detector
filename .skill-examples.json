@@ -1,0 +1,63 @@
+{
+  "model": "claude-sonnet-4-6",
+  "examples": [
+    {
+      "prompt": "帮我看看这个仓库的测试写得怎么样",
+      "aiResponses": [
+        {
+          "type": "thinking",
+          "content": "用户要求评估仓库测试质量。这触发了 test-quality-evaluator skill。我需要：1) 检测 jest 配置 2) 运行覆盖率 3) 扫描 AI 自欺欺人反模式 4) 输出评分报告"
+        },
+        {
+          "type": "toolcall",
+          "toolName": "Bash",
+          "toolInput": {
+            "command": "npx jest --coverage --coverageReporters=text-summary",
+            "description": "运行 jest 覆盖率"
+          }
+        },
+        {
+          "type": "message",
+          "content": "📊 测试质量评估报告\n\n覆盖率：\n  Statements: 85% ✅\n  Branches: 62% 🔴\n  Functions: 90% ✅\n\n自欺欺人程度：55%\n  [P0] 预期值倒推: 4 处 — 测试的 expected 从实现代码抄来\n  [P1] mock 万能: 3 处 — 只验证调用未验证结果\n\n测试精确率：45/100\n  边界值覆盖: 2/12 个函数\n  异常路径: 1/12 个函数\n\n⚠️ 关键问题：calculator.test.ts 的预期值明显是从实现倒推的。正确做法是根据函数名和业务语义设计测试，而不是看了实现再写 expected。"
+        }
+      ],
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "prompt": "为什么覆盖率 90% 但还出 bug？",
+      "aiResponses": [
+        {
+          "type": "thinking",
+          "content": "用户遇到高覆盖率但仍有 bug 的情况。这很可能是因为测试存在 AI 自欺欺人——测试是根据实现代码倒推预期值写的，而非验证业务需求。我需要运行 test-quality-evaluator 来量化这个问题。"
+        },
+        {
+          "type": "message",
+          "content": "高覆盖率不代表测试有效，很可能是 AI 自欺欺人测试。让我运行质量评估器检查具体的自欺欺人模式...\n\n自欺欺人程度：68% 🔴\n\n1. **预期值倒推**（权重 30%）\n   src/utils.test.ts:14 `expect(add(2,3)).toBe(5)` —— 5 是从 `return a+b` 抄的。如果实现改成 `return a*b`，测试仍然通过。\n\n2. **Mock 万能**（权重 25%）\n   src/api.test.ts 所有测试只验证 `fetchMock.toHaveBeenCalledWith`，从未验证返回数据是否正确映射为业务对象。\n\n3. **Happy Path 依赖**（权重 20%）\n   12 个被测函数中 10 个从未被边界值测试。\n\n这些测试给了你好感（90% 覆盖率），但代码出 bug 时它们不会报警。这就是自欺欺人的本质。"
+        }
+      ],
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "prompt": "把这些测试改得更可靠一点",
+      "aiResponses": [
+        {
+          "type": "thinking",
+          "content": "用户要求改进测试可靠性。我需要先执行质量评估定位具体问题，然后给出可执行的修改指令，按优先级排序。"
+        },
+        {
+          "type": "toolcall",
+          "toolName": "Bash",
+          "toolInput": {
+            "command": "npx jest --coverage --collectCoverageFrom='src/**/*.{ts,tsx}'",
+            "description": "运行完整覆盖率分析"
+          }
+        },
+        {
+          "type": "message",
+          "content": "先执行质量评估，然后按优先级给出改进方案：\n\n🔧 [P0] 消除预期值倒推 — src/calculator.test.ts\n   当前：`expect(multiply(3,5)).toBe(15)` // 15 是从实现 return a*b 抄的\n   改为：不要看实现代码。根据「multiply 是乘法」的语义，用独立算出的值验证：`expect(multiply(4,7)).toBe(28)`\n\n🔧 [P0] 补全 mock 后的业务验证 — src/api.test.ts:22\n   当前：`expect(fetchMock).toHaveBeenCalledWith('/api/users')`\n   补充：`const result = await getUsers(); expect(result[0].email).toBe('alice@example.com')`\n\n🔧 [P1] 增加边界值测试 — src/validateEmail.test.ts\n   补充：`validateEmail('') → false`，`validateEmail(null) → false`，`validateEmail('not-an-email') → false`\n\n执行后精确率预计从 45 提升到 80+。"
+        }
+      ],
+      "model": "claude-sonnet-4-6"
+    }
+  ]
+}
