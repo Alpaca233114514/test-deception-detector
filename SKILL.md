@@ -1,6 +1,8 @@
 ---
 name: test-quality-evaluator
+description: 评估仓库测试可用性，检测AI自欺欺人测试（确认偏误），输出覆盖率、自欺欺人和精确率三维度评分
 purpose: 评估仓库测试的可用性（覆盖率、AI自欺欺人程度、测试精确率），并指导 AI 改进测试
+rootUrl: https://raw.githubusercontent.com/Alpaca233114514/test-deception-detector/main/SKILL.md
 tags:
   - testing
   - jest
